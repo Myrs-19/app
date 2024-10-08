@@ -295,7 +295,7 @@ class NetworkTopologyApp:
 
         # Кнопка для сохранения глобальных данных
         self.update_global_data_button = tk.Button(self.global_data_frame, text="Update Global Data", command=self.update_global_data)
-        self.update_global_data_button.grid(row=6, column=0, columnspan=2, pady=10)
+        self.update_global_data_button.grid(row=30, column=0, columnspan=2, pady=10)
 
     def update_global_data(self):
         """Обновление глобальных данных топологии"""
@@ -306,6 +306,10 @@ class NetworkTopologyApp:
         self.global_topology_data["message_destination"] = self.msg_destination_entry.get()
 
         messagebox.showinfo("Global Data Updated", "Global topology data updated successfully!")
+        print(self.find_all_routes(
+                self.global_topology_data["message_source"],
+                self.global_topology_data["message_destination"]
+        ))
 
     def add_channel_data_form(self):
         """Форма для ввода характеристик каналов"""
@@ -344,7 +348,7 @@ class NetworkTopologyApp:
 
         # Кнопка для сохранения характеристик каналов
         self.update_channel_data_button = tk.Button(self.channel_data_frame, text="Update Channel Data", command=self.update_channel_data)
-        self.update_channel_data_button.grid(row=6, column=0, columnspan=2, pady=10)
+        self.update_channel_data_button.grid(row=30, column=0, columnspan=2, pady=10)
 
     def update_channel_data(self):
         """Сохранение данных о характеристиках каналов"""
@@ -365,6 +369,30 @@ class NetworkTopologyApp:
             }
 
         messagebox.showinfo("Channel Data Updated", "Channel characteristics updated successfully!")
+
+    def find_all_routes(self, start, end, path=[]):
+        """Поиск всех маршрутов от начального узла до конечного"""
+        
+        # ищем все узлы, которые задействованы в каналах
+        active_nodes = set([el[0] for el in self.channels]).union(set(([el[1] for el in self.channels])))
+        
+        path = path + [start]
+        if start == end:
+            return [path]
+        if start not in active_nodes:
+            return []
+
+        routes = []
+        for node1, node2 in self.channels:
+            if node1 == start and node2 not in path:
+                new_routes = self.find_all_routes(node2, end, path)
+                for new_route in new_routes:
+                    routes.append(new_route)
+            elif node2 == start and node1 not in path:
+                new_routes = self.find_all_routes(node1, end, path)
+                for new_route in new_routes:
+                    routes.append(new_route)
+        return routes
 
 if __name__ == "__main__":
     root = tk.Tk()
