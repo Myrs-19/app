@@ -306,10 +306,16 @@ class NetworkTopologyApp:
         self.global_topology_data["message_destination"] = self.msg_destination_entry.get()
 
         messagebox.showinfo("Global Data Updated", "Global topology data updated successfully!")
-        print(self.find_all_routes(
+        print(self.channels)
+        all_routes = self.find_all_routes(
                 self.global_topology_data["message_source"],
                 self.global_topology_data["message_destination"]
-        ))
+        )
+        #all_routes = [set(el) if type(el) is set else el for el in all_routes]
+        
+        all_routes = list(dict.fromkeys(all_routes))
+        
+        print(all_routes)
 
     def add_channel_data_form(self):
         """Форма для ввода характеристик каналов"""
@@ -388,10 +394,12 @@ class NetworkTopologyApp:
                 new_routes = self.find_all_routes(node2, end, path)
                 for new_route in new_routes:
                     routes.append(new_route)
+                    routes.append((node1, node2))
             elif node2 == start and node1 not in path:
                 new_routes = self.find_all_routes(node1, end, path)
                 for new_route in new_routes:
                     routes.append(new_route)
+                    routes.append((node1, node2))
         return routes
 
 if __name__ == "__main__":
