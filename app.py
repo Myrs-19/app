@@ -306,16 +306,15 @@ class NetworkTopologyApp:
         self.global_topology_data["message_destination"] = self.msg_destination_entry.get()
 
         messagebox.showinfo("Global Data Updated", "Global topology data updated successfully!")
-        print(self.channels)
+        # print(self.channels)
         all_routes = self.find_all_routes(
                 self.global_topology_data["message_source"],
                 self.global_topology_data["message_destination"]
         )
-        #all_routes = [set(el) if type(el) is set else el for el in all_routes]
         
-        all_routes = list(dict.fromkeys(all_routes))
-        
-        print(all_routes)
+        all_routes = self.delete_duplicate(all_routes)
+
+        # print(all_routes)
 
     def add_channel_data_form(self):
         """Форма для ввода характеристик каналов"""
@@ -401,6 +400,43 @@ class NetworkTopologyApp:
                     routes.append(new_route)
                     routes.append((node1, node2))
         return routes
+
+    def delete_duplicate(self, all_routes):
+        # начало списка каналов для маршрута
+        i_st = 0
+        i_en = None
+
+        # список, в котором удалены дубли
+        all_routes_deleted = []
+
+        # список индексов списков
+        list_indexes = []
+        for i in range(len(all_routes)):
+            if type(all_routes[i]) is list:
+                list_indexes.append(i)
+
+        # list_indexes.append(len(all_routes)-1)
+        
+        # print(all_routes)
+        # print(list_indexes)
+
+        for i in range(len(list_indexes)):
+            if i == (len(list_indexes)-1):
+                all_routes_deleted.append(
+                    (
+                        all_routes[list_indexes[i]], 
+                        list(set(all_routes[list_indexes[i]+1:]))
+                    )
+                )
+            else:
+                all_routes_deleted.append(
+                    (
+                        all_routes[list_indexes[i]], 
+                        list(set(all_routes[list_indexes[i]+1:list_indexes[i+1]]))
+                    )
+                )
+                
+        return all_routes_deleted
 
 if __name__ == "__main__":
     root = tk.Tk()
