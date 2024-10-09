@@ -78,6 +78,13 @@ class NetworkTopologyApp:
         # Поля для данных характеристик каналов
         self.add_channel_data_form()
 
+        # Вкладка для расчета времени доставки сообщения от исходного до назначенного узла
+        self.calculate_data_frame = tk.Frame(self.notebook)
+        self.notebook.add(self.calculate_data_frame, text="Global Topology Data")
+
+        # Элементы вкладки
+        self.add_calculate_data_form()
+
     def add_form_headers(self):
         """Добавление заголовков для столбцов формы сверху"""
         node_label = tk.Label(self.node_form_frame, text="Node", font=('Arial', 10, 'bold'))
@@ -306,15 +313,6 @@ class NetworkTopologyApp:
         self.global_topology_data["message_destination"] = self.msg_destination_entry.get()
 
         messagebox.showinfo("Global Data Updated", "Global topology data updated successfully!")
-        # print(self.channels)
-        all_routes = self.find_all_routes(
-                self.global_topology_data["message_source"],
-                self.global_topology_data["message_destination"]
-        )
-        
-        all_routes = self.delete_duplicate(all_routes)
-
-        # print(all_routes)
 
     def add_channel_data_form(self):
         """Форма для ввода характеристик каналов"""
@@ -375,6 +373,31 @@ class NetworkTopologyApp:
 
         messagebox.showinfo("Channel Data Updated", "Channel characteristics updated successfully!")
 
+    def add_calculate_data_form(self):
+        """Форма для ввода глобальных данных топологии"""
+        calculate_data_label = tk.Label(self.calculate_data_frame, text="Calculate Data Topology", font=('Arial', 12, 'bold'))
+        calculate_data_label.grid(row=0, column=0, columnspan=2, pady=10)
+
+        # Кнопка для сохранения глобальных данных
+        self.update_calculate_data_button = tk.Button(self.calculate_data_frame, text="calculate", command=self.calculate_data)
+        self.update_calculate_data_button.grid(row=30, column=0, columnspan=2, pady=10)
+
+    def calculate_data(self):
+        # получаем начальный и конечный узел
+        all_routes = self.find_all_routes(
+            self.global_topology_data["message_source"],
+            self.global_topology_data["message_destination"]
+        )
+
+        # склеиваем узлы и каналы маршрутов
+        all_routes = self.delete_duplicate(all_routes)
+
+        print(all_routes)
+
+        probability_routes_fail = self.calculate_probability_route_fail(all_routes)
+
+        print(probability_routes_fail)
+
     def find_all_routes(self, start, end, path=[]):
         """Поиск всех маршрутов от начального узла до конечного"""
         
@@ -401,6 +424,11 @@ class NetworkTopologyApp:
                     routes.append((node1, node2))
         return routes
 
+    """ 
+        возвращает список кортежей:
+            1ый элемент это список узлов
+            2ой элемент это список кортежей - каждый кортеж это канал между iого и jого узла
+     """
     def delete_duplicate(self, all_routes):
         # начало списка каналов для маршрута
         i_st = 0
@@ -435,8 +463,34 @@ class NetworkTopologyApp:
                         list(set(all_routes[list_indexes[i]+1:list_indexes[i+1]]))
                     )
                 )
-                
+
         return all_routes_deleted
+
+    """
+        метод расчитывает вероятность отказа k-ого маршрута
+    """
+    def calculate_probability_route_fail(self, all_routes):
+        probability_routes_fail = [] # результирующий список
+
+        # проходим по всем маршрутам
+        for i in range(len(all_routes)):
+            probability_value = 1
+            p_nodes = 1
+            p_channel = 1
+
+            # проходим узлам в маршруте
+            for node in all_routes[i][0]:
+                p_nodes *= 1 - self.node_failure_data[node]["failure_prob"] # вероятность отказа узелa
+
+            # проходим узлам в маршруте
+            for channel in all_routes[i][1]:
+                p_channel *= 1 - self.channel_characteristics[channel]["failure_probability"] # вероятность отказа узелa
+
+            probability_value = probability_value - p_nodes*p_channel # расчитываем итоговую вероятность
+            probability_routes_fail.append(probability_value)
+
+        return probability_routes_fail
+
 
 if __name__ == "__main__":
     root = tk.Tk()
