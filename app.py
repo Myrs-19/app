@@ -30,6 +30,7 @@ class NetworkTopologyApp:
             "message_source": "",
             "message_destination": ""
         }  # Глобальные данные для всей сети
+        self.itog_time = {} # итоговое расчитанное время 
 
         # Кнопки для добавления узлов, каналов и очистки холста
         self.add_node_button = tk.Button(self.topology_frame, text="Add Node", command=self.add_node)
@@ -80,10 +81,17 @@ class NetworkTopologyApp:
 
         # Вкладка для расчета времени доставки сообщения от исходного до назначенного узла
         self.calculate_data_frame = tk.Frame(self.notebook)
-        self.notebook.add(self.calculate_data_frame, text="Global Topology Data")
+        self.notebook.add(self.calculate_data_frame, text="Calculate")
 
         # Элементы вкладки
         self.add_calculate_data_form()
+
+        # Вкладка для расчета времени доставки сообщения от исходного до назначенного узла
+        self.result_data_frame = tk.Frame(self.notebook)
+        self.notebook.add(self.result_data_frame, text="Result")
+
+        # # Элементы вкладки
+        self.add_result_data_form()
 
     def add_form_headers(self):
         """Добавление заголовков для столбцов формы сверху"""
@@ -383,20 +391,169 @@ class NetworkTopologyApp:
         self.update_calculate_data_button.grid(row=30, column=0, columnspan=2, pady=10)
 
     def calculate_data(self):
+        # задаем тестовые данные
+        self.node_failure_data = {'1': {'failure_prob': 0.3, 'recovery_time': 3.0}, '2': {'failure_prob': 0.2, 'recovery_time': 2.0}, '3': {'failure_prob': 0.1, 'recovery_time': 1.0}, '4': {'failure_prob': 0.2, 'recovery_time': 
+2.0}}
+        self.channel_characteristics = {
+            ('1', '2'): 
+                {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
+            ('2', '3'): 
+                {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}, 
+            ('1', '3'): 
+                {'modulation_speed': 9600.0, 'channel_bundle_count': 6, 'recovery_time': 6.0, 'failure_probability': 0.05, 'avg_packet_length': 8192.0}, 
+            ('1', '4'): 
+                {'modulation_speed': 1200.0, 'channel_bundle_count': 5, 'recovery_time': 5.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
+            ('4', '3'): 
+                {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.05, 'avg_packet_length': 1024.0}, 
+            ('4', '2'): 
+                {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}}
+
+        all_routes = [(['1', '2'], [('1', '2')]), (['1', '3', '2'], [('1', '3'), ('2', '3')]), (['1', '3', '4', '2'], [('1', '3'), ('4', '2'), ('4', '3')]), (['1', '4', '3', '2'], [('2', '3'), ('1', '4'), ('4', '3')]), (['1', '4', '2'], [('1', '4'), ('4', '2')])]
+
+        self.global_topology_data = {'average_message_length': 256.0, 'message_intensity': 10.0, 'minimum_delivery_time': 7.0, 'message_source': '1', 'message_destination': '2'}
+
         # получаем начальный и конечный узел
-        all_routes = self.find_all_routes(
-            self.global_topology_data["message_source"],
-            self.global_topology_data["message_destination"]
-        )
+        # all_routes = self.find_all_routes(
+        #     self.global_topology_data["message_source"],
+        #     self.global_topology_data["message_destination"]
+        # )
+
+        print("calculate_data[1]: получили все маршруты")
 
         # склеиваем узлы и каналы маршрутов
-        all_routes = self.delete_duplicate(all_routes)
+        # all_routes = self.delete_duplicate(all_routes)
 
-        print(all_routes)
+        all_routes = [
+            (
+                el[0],
+                self.process_channels_routes(el[0], el[1])
+            ) for el in all_routes
+        ]
 
-        probability_routes_fail = self.calculate_probability_route_fail(all_routes)
+        print("calculate_data[2]: удалили дубли")
 
-        print(probability_routes_fail)
+        probability_routes_fail = self.calculate_probability_route_fail(all_routes) # dict[route] : prob
+
+        print("calculate_data[3]: посчитали вероятность отказа маршуртов")
+
+        self.average_time_sending = dict([
+            (
+                channel, 
+                (characters['avg_packet_length']) / (characters['modulation_speed'] * characters['channel_bundle_count'])
+            ) for channel, characters in self.channel_characteristics.items() 
+        ])
+
+        print("calculate_data[4]: посчитали среднее время передачи в канале")
+
+        probability_routes_fail_sm = sum(probability_routes_fail.values())
+
+        probability_routes_fail_norm = dict([ (route, (prob / probability_routes_fail_sm)) for route, prob in probability_routes_fail.items()])
+
+        print("calculate_data[5]: нормализовали вероятности отказов маршрутов")
+
+        intensivnost_route = dict([
+            (
+                route,
+                self.global_topology_data['message_intensity'] * prob
+            ) for route, prob in probability_routes_fail_norm.items()
+        ])
+
+        print("calculate_data[6]: расчет распределения интенсивности сообщений по маршрутам")
+
+        # сумма времени задержки по маршрутам
+        sm_wait_route = dict([
+            (
+                route,
+                0
+            ) for route in intensivnost_route.keys()
+        ])
+        # максимальное кол-во узлов
+        mx_amount_nodes = max(map(lambda x: len(x[0]), intensivnost_route.keys()))
+        
+        # посчитать сумму вэ и посмотреть как правильно считтать - хихха
+        for i in range(mx_amount_nodes):
+            # hihiha
+            average_wait_node_route_ro = dict([
+                (
+                    route,
+                    intensivonst * self.average_time_sending[route[1][0]]
+                ) for route, intensivonst in intensivnost_route.items()
+            ])
+
+            print("calculate_data[7]: расчитаем среднее время ожидания на k-ом узле")
+
+            average_wait_node_route_sm_ro = sum(average_wait_node_route_ro.values())
+
+            average_wait_node_route_norm_ro = dict([
+                (
+                    route,
+                    avg_wait / average_wait_node_route_sm_ro
+                ) for route, avg_wait in average_wait_node_route_ro.items()
+            ])
+
+            print("calculate_data[8]: нашел норм ро")
+
+            average_wait_node_route = dict([
+                (
+                    route,
+                    (norm_ro * self.average_time_sending[route[1][0]]) / (1 - norm_ro)
+                ) for route, norm_ro in average_wait_node_route_norm_ro.items()
+            ])
+
+            # прибавляем вэ если i не больше чем длина узлов - 1
+            for route, w in average_wait_node_route.items():
+                if (len(route[0]) - 1) >= i:
+                    print('---')
+                    print(route, w)
+                    print('---')
+                    sm_wait_route[route] += w
+
+            print("calculate_data[9]: находим среднее время ожидания на k-ом узле")
+
+            average_messages_nodes_route = dict([
+                (
+                    route,
+                    (norm_ro * norm_ro) / (1 - norm_ro)
+                ) for route, norm_ro in average_wait_node_route_norm_ro.items()
+            ])
+
+            print("calculate_data[10]: посчитали среднее число сообщений в очереди на k-ом узле")
+
+            for route, intensivt in intensivnost_route.items():
+                intensivnost_route[route] = intensivnost_route[route] - average_messages_nodes_route[route]
+
+            print("calculate_data[11]: уменьшили интенсивность на величину очереди")
+
+        # сумма средних значений времени передач по маршрутам
+        sm_avg_time_sending = dict([
+            (
+                route,
+                0
+            ) for route in intensivnost_route.keys()
+        ])
+
+        for route in intensivnost_route.keys():
+            for channel in route[1]:
+                sm_avg_time_sending[route] += self.average_time_sending[channel]
+        
+        print("calculate_data[12]: посчитали сумму средних значений времени передач")
+
+        self.itog_time = dict([
+            (
+                route,
+                sm_avg_time_sending[route] + sm_wait_route[route]
+            ) for route in intensivnost_route.keys()
+        ])
+
+        print("calculate_data[13]: посчитали итоговое время передачи по маршрутам")
+
+        self.add_result_data_form()
+
+        print('---')
+        for route in intensivnost_route.keys():
+            print(route, "time sending =", sm_avg_time_sending[route], "wait =", sm_wait_route[route], "itog time =", self.itog_time[route])
+        print('---')
+
 
     def find_all_routes(self, start, end, path=[]):
         """Поиск всех маршрутов от начального узла до конечного"""
@@ -469,8 +626,10 @@ class NetworkTopologyApp:
     """
         метод расчитывает вероятность отказа k-ого маршрута
     """
-    def calculate_probability_route_fail(self, all_routes):
-        probability_routes_fail = [] # результирующий список
+    def calculate_probability_route_fail(self, all_routes=[]):
+        probability_routes_fail = {} 
+
+        all_routes = [(tuple(el[0]), tuple(el[1])) for el in all_routes]
 
         # проходим по всем маршрутам
         for i in range(len(all_routes)):
@@ -480,17 +639,36 @@ class NetworkTopologyApp:
 
             # проходим узлам в маршруте
             for node in all_routes[i][0]:
-                p_nodes *= 1 - self.node_failure_data[node]["failure_prob"] # вероятность отказа узелa
+                p_nodes *= 1 - self.node_failure_data[node]["failure_prob"] # вероятность отказа узлa
 
             # проходим узлам в маршруте
             for channel in all_routes[i][1]:
-                p_channel *= 1 - self.channel_characteristics[channel]["failure_probability"] # вероятность отказа узелa
+                p_channel *= 1 - self.channel_characteristics[channel]["failure_probability"] # вероятность отказа узлa
 
-            probability_value = probability_value - p_nodes*p_channel # расчитываем итоговую вероятность
-            probability_routes_fail.append(probability_value)
+            probability_value = probability_value - p_nodes*p_channel # рассчитываем итоговую вероятность
+            probability_routes_fail[all_routes[i]] = probability_value
 
         return probability_routes_fail
 
+    # переворачиваем узлы в данных каналов
+    # и сортируем каналы
+    def process_channels_routes(self, nodes, channels):
+        new_channels = []
+        for i in range(len(nodes) - 1):
+            for channel in channels:
+                if nodes[i] in channel and channel not in new_channels:
+                    new_channels.append(channel)
+                    continue
+            
+        return new_channels
+    
+    def add_result_data_form(self):
+        result = [(route, itog_time) for route, itog_time in self.itog_time.items()]
+        result = sorted(result, key=lambda x: x[1])
+
+        for i in range(len(result)):
+            col = tk.Label(self.result_data_frame, text="route: " + str(result[i][0][0]) + ", time = " + str(result[i][1]), font=('Arial', 10))
+            col.grid(row=i, column=0, columnspan=2, pady=10)
 
 if __name__ == "__main__":
     root = tk.Tk()
