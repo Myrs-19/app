@@ -1,3 +1,4 @@
+from tkinter import *
 import tkinter as tk
 from tkinter import simpledialog, messagebox, ttk
 
@@ -89,6 +90,9 @@ class NetworkTopologyApp:
         # Вкладка для расчета времени доставки сообщения от исходного до назначенного узла
         self.result_data_frame = tk.Frame(self.notebook)
         self.notebook.add(self.result_data_frame, text="Result")
+        
+        self.tree = ttk.Treeview(self.result_data_frame, columns=("Route", "Time"), show="headings")
+        self.tree.pack(fill=BOTH, expand=1)
 
         # # Элементы вкладки
         self.add_result_data_form()
@@ -392,36 +396,36 @@ class NetworkTopologyApp:
 
     def calculate_data(self):
         # задаем тестовые данные
-        self.node_failure_data = {'1': {'failure_prob': 0.3, 'recovery_time': 3.0}, '2': {'failure_prob': 0.2, 'recovery_time': 2.0}, '3': {'failure_prob': 0.1, 'recovery_time': 1.0}, '4': {'failure_prob': 0.2, 'recovery_time': 
-2.0}}
-        self.channel_characteristics = {
-            ('1', '2'): 
-                {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
-            ('2', '3'): 
-                {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}, 
-            ('1', '3'): 
-                {'modulation_speed': 9600.0, 'channel_bundle_count': 6, 'recovery_time': 6.0, 'failure_probability': 0.05, 'avg_packet_length': 8192.0}, 
-            ('1', '4'): 
-                {'modulation_speed': 1200.0, 'channel_bundle_count': 5, 'recovery_time': 5.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
-            ('4', '3'): 
-                {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.05, 'avg_packet_length': 1024.0}, 
-            ('4', '2'): 
-                {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}}
+#         self.node_failure_data = {'1': {'failure_prob': 0.3, 'recovery_time': 3.0}, '2': {'failure_prob': 0.2, 'recovery_time': 2.0}, '3': {'failure_prob': 0.1, 'recovery_time': 1.0}, '4': {'failure_prob': 0.2, 'recovery_time': 
+# 2.0}}
+#         self.channel_characteristics = {
+#             ('1', '2'): 
+#                 {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
+#             ('2', '3'): 
+#                 {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}, 
+#             ('1', '3'): 
+#                 {'modulation_speed': 9600.0, 'channel_bundle_count': 6, 'recovery_time': 6.0, 'failure_probability': 0.05, 'avg_packet_length': 8192.0}, 
+#             ('1', '4'): 
+#                 {'modulation_speed': 1200.0, 'channel_bundle_count': 5, 'recovery_time': 5.0, 'failure_probability': 0.2, 'avg_packet_length': 1024.0}, 
+#             ('4', '3'): 
+#                 {'modulation_speed': 1200.0, 'channel_bundle_count': 3, 'recovery_time': 3.0, 'failure_probability': 0.05, 'avg_packet_length': 1024.0}, 
+#             ('4', '2'): 
+#                 {'modulation_speed': 4800.0, 'channel_bundle_count': 4, 'recovery_time': 4.0, 'failure_probability': 0.05, 'avg_packet_length': 4096.0}}
 
-        all_routes = [(['1', '2'], [('1', '2')]), (['1', '3', '2'], [('1', '3'), ('2', '3')]), (['1', '3', '4', '2'], [('1', '3'), ('4', '2'), ('4', '3')]), (['1', '4', '3', '2'], [('2', '3'), ('1', '4'), ('4', '3')]), (['1', '4', '2'], [('1', '4'), ('4', '2')])]
+#         all_routes = [(['1', '2'], [('1', '2')]), (['1', '3', '2'], [('1', '3'), ('2', '3')]), (['1', '3', '4', '2'], [('1', '3'), ('4', '2'), ('4', '3')]), (['1', '4', '3', '2'], [('2', '3'), ('1', '4'), ('4', '3')]), (['1', '4', '2'], [('1', '4'), ('4', '2')])]
 
-        self.global_topology_data = {'average_message_length': 256.0, 'message_intensity': 10.0, 'minimum_delivery_time': 7.0, 'message_source': '1', 'message_destination': '2'}
+#         self.global_topology_data = {'average_message_length': 256.0, 'message_intensity': 10.0, 'minimum_delivery_time': 7.0, 'message_source': '1', 'message_destination': '2'}
 
         # получаем начальный и конечный узел
-        # all_routes = self.find_all_routes(
-        #     self.global_topology_data["message_source"],
-        #     self.global_topology_data["message_destination"]
-        # )
+        all_routes = self.find_all_routes(
+            self.global_topology_data["message_source"],
+            self.global_topology_data["message_destination"]
+        )
 
         print("calculate_data[1]: получили все маршруты")
 
         # склеиваем узлы и каналы маршрутов
-        # all_routes = self.delete_duplicate(all_routes)
+        all_routes = self.delete_duplicate(all_routes)
 
         all_routes = [
             (
@@ -476,13 +480,20 @@ class NetworkTopologyApp:
             average_wait_node_route_ro = dict([
                 (
                     route,
-                    intensivonst * self.average_time_sending[route[1][0]]
+                    # intensivonst * self.average_time_sending[route[1][0]] # hihiha
+                    intensivonst * self.average_time_sending[route[1][
+                        i if (len(route[1]) - 1) >= i else len(route[1]) - 1
+                    ]]
                 ) for route, intensivonst in intensivnost_route.items()
             ])
 
             print("calculate_data[7]: расчитаем среднее время ожидания на k-ом узле")
 
-            average_wait_node_route_sm_ro = sum(average_wait_node_route_ro.values())
+            # average_wait_node_route_sm_ro = sum(average_wait_node_route_ro.values())
+            average_wait_node_route_sm_ro = 0
+            for route, ro in average_wait_node_route_ro.items():
+                if (len(route[0]) - 1) >= i:
+                    average_wait_node_route_sm_ro += ro
 
             average_wait_node_route_norm_ro = dict([
                 (
@@ -496,16 +507,16 @@ class NetworkTopologyApp:
             average_wait_node_route = dict([
                 (
                     route,
-                    (norm_ro * self.average_time_sending[route[1][0]]) / (1 - norm_ro)
+                    # intensivonst * self.average_time_sending[route[1][0]] # hihiha
+                    (norm_ro * self.average_time_sending[route[1][
+                        i if (len(route[1]) - 1) >= i else len(route[1]) - 1
+                    ]]) / (1 - norm_ro)
                 ) for route, norm_ro in average_wait_node_route_norm_ro.items()
             ])
 
             # прибавляем вэ если i не больше чем длина узлов - 1
             for route, w in average_wait_node_route.items():
                 if (len(route[0]) - 1) >= i:
-                    print('---')
-                    print(route, w)
-                    print('---')
                     sm_wait_route[route] += w
 
             print("calculate_data[9]: находим среднее время ожидания на k-ом узле")
@@ -548,11 +559,6 @@ class NetworkTopologyApp:
         print("calculate_data[13]: посчитали итоговое время передачи по маршрутам")
 
         self.add_result_data_form()
-
-        print('---')
-        for route in intensivnost_route.keys():
-            print(route, "time sending =", sm_avg_time_sending[route], "wait =", sm_wait_route[route], "itog time =", self.itog_time[route])
-        print('---')
 
 
     def find_all_routes(self, start, end, path=[]):
@@ -664,11 +670,15 @@ class NetworkTopologyApp:
     
     def add_result_data_form(self):
         result = [(route, itog_time) for route, itog_time in self.itog_time.items()]
-        result = sorted(result, key=lambda x: x[1])
+        result = sorted(result, key=lambda x: x[1])        
+
+        self.tree.delete()
+        self.tree.pack(fill=BOTH, expand=1)
+        self.tree.heading("Route", text="Route")
+        self.tree.heading("Time", text="Time")
 
         for i in range(len(result)):
-            col = tk.Label(self.result_data_frame, text="route: " + str(result[i][0][0]) + ", time = " + str(result[i][1]), font=('Arial', 10))
-            col.grid(row=i, column=0, columnspan=2, pady=10)
+            self.tree.insert("", END, values=(result[i][0][0], result[i][1]))
 
 if __name__ == "__main__":
     root = tk.Tk()
